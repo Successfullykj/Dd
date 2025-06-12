@@ -402,25 +402,6 @@ Week-->420 Rs
 Month-->800 Rs
 '''
     bot.reply_to(message, response)
-
-@Client.on_message(filters.command("set_duration") & filters.user(ADMINS))
-async def set_duration(_, message):
-    if len(message.command) < 2:
-        return await message.reply_text("⚠️ Usage: `/set_duration <seconds>`", quote=True)
-
-    try:
-        duration = int(message.command[1])
-    except ValueError:
-        return await message.reply_text("❌ Please provide duration in seconds as a number.", quote=True)
-
-    if duration > 3600:  # 1 hour max
-        return await message.reply_text("⏱️ Maximum allowed duration is `3600 seconds` (1 hour).", quote=True)
-
-    global MAX_DURATION
-    MAX_DURATION = duration
-
-    await message.reply_text(f"✅ Duration successfully set to `{duration} seconds`!", quote=True)
-
 @bot.message_handler(commands=['admincmd'])
 def welcome_plan(message):
     user_name = message.from_user.first_name
