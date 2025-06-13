@@ -1,21 +1,140 @@
 import telebot
-from telebot import types
 import os
+import time
 import random
 import threading
-import time
+from telebot.apihelper import ApiTelegramException
 
+# Bot Token
 token = "7828550293:AAHQK64NpZdRSDhAhDdOo2ZOrWu-OKO8G1I"
 bot = telebot.TeleBot(token)
 
 APPROVED_USERS_FILE = "approved_users.txt"
-spamming_users = {}
+approved_users = []
 
-# Full list of abusive messages (galis)
+def load_approved_users():
+    users = []
+    if os.path.exists(APPROVED_USERS_FILE):
+        with open(APPROVED_USERS_FILE, "r") as f:
+            for line in f:
+                data = line.strip().split(',')
+                if len(data) == 2:
+                    users.append({'id': int(data[0]), 'username': data[1]})
+    return users
+
+def save_approved_users():
+    with open(APPROVED_USERS_FILE, "w") as f:
+        for user in approved_users:
+            f.write(f"{user['id']},{user['username']}\n")
+
+approved_users = load_approved_users()
+admins = [8179218740]  # Replace with your Telegram ID
+stop_gali = False
+
+@bot.message_handler(commands=["start"])
+def welcome(message):
+    bot.reply_to(message, 
+        "𝙒𝙚𝙡𝙘𝙤𝙢𝙚 𝙩𝙤 𝙩𝙝𝙚 𝙐𝙡𝙩𝙞𝙢𝙖𝙩𝙚 𝙂𝙖𝙡𝙞 𝙎𝙥𝙖𝙢 𝘽𝙤𝙩!\n\n"
+        "➤ /approve <user_id> - Approve a user\n"
+        "➤ /list_approved - List all approved users\n"
+        "➤ /remove <user_id> - Remove an approved user\n"
+        "➤ /remove_all - Remove all approved users\n"
+        "➤ /fuck <username> - Spam all galis once\n"
+        "➤ /stop - Stop the ongoing spam")
+
+@bot.message_handler(commands=["approve"])
+def approve_user(message):
+    if message.from_user.id not in admins:
+        bot.reply_to(message, "Only admins can approve users!")
+        return
+    msg_parts = message.text.split()
+    if len(msg_parts) != 2 or not msg_parts[1].isdigit():
+        bot.reply_to(message, "Usage: /approve <user_id>")
+        return
+    user_id = int(msg_parts[1])
+    if any(user['id'] == user_id for user in approved_users):
+        bot.reply_to(message, f"User with ID {user_id} is already approved.")
+        return
+    try:
+        user_info = bot.get_chat(user_id)
+        username = user_info.username or "No Username"
+    except Exception:
+        username = "No Username"
+    approved_users.append({'id': user_id, 'username': username})
+    save_approved_users()
+    bot.reply_to(message, f"User {username} ({user_id}) has been approved successfully!")
+
+@bot.message_handler(commands=["list_approved"])
+def list_approved(message):
+    if not approved_users:
+        bot.reply_to(message, "No users have been approved yet.")
+    else:
+        users_list = "\n".join([f"{user['username']} ({user['id']})" for user in approved_users])
+        bot.reply_to(message, f"Approved Users:\n{users_list}")
+
+@bot.message_handler(commands=["remove"])
+def remove_user(message):
+    if message.from_user.id not in admins:
+        bot.reply_to(message, "Only admins can remove users!")
+        return
+    msg_parts = message.text.split()
+    if len(msg_parts) != 2 or not msg_parts[1].isdigit():
+        bot.reply_to(message, "Usage: /remove <user_id>")
+        return
+    user_id = int(msg_parts[1])
+    for user in approved_users:
+        if user['id'] == user_id:
+            approved_users.remove(user)
+            save_approved_users()
+            bot.reply_to(message, f"User {user['username']} ({user_id}) has been removed.")
+            return
+    bot.reply_to(message, f"User with ID {user_id} not found.")
+
+@bot.message_handler(commands=["remove_all"])
+def remove_all_users(message):
+    if message.from_user.id not in admins:
+        bot.reply_to(message, "Only admins can remove all users!")
+        return
+    approved_users.clear()
+    save_approved_users()
+    bot.reply_to(message, "All approved users have been removed.")
+
+@bot.message_handler(commands=["stop"])
+def stop_galis(message):
+    global stop_gali
+    stop_gali = True
+    bot.reply_to(message, "Stopping all galis...")
+
+# Sample gali list (short demo)
 galis = [
-    "MADARCHOD TERI MAA KI CHUT ME GHUTKA KHAAKE THOOK DUNGA 🤣🤣",
-    "TERE BEHEN K CHUT ME CHAKU DAAL KAR CHUT KA KHOON KAR DUGA",
-    "TERI MAA K BHOSDE ME AEROPLANE PARK KARKE UDAAN BHAR DUGA ✈️🛫",
+    "Teri maa ki chut me solar panel laga dunga",
+    "Teri maa ki gaand me RGB light laga dunga",
+    "Teri maa ki chut me Bluetooth speaker daal ke gali FM chala dunga",
+    "Tere baap ka lund flipkart me sale pe daal dunga",
+    "Teri maa ki chut me WiFi router daal ke sabko internet de dunga",
+    "Teri maa ki chut me notepad khol ke code likh dunga",
+    "Teri maa ki aakh",
+    "Bhosdike",
+    "Madarchod",
+    "Behenchod",
+    "Randi ke bacche",
+    "Kutte",
+    "Chutiya",
+    "Gandu",
+    "Teri maa ka bhosda",
+    "Baap se panga"
+    "Tere baap ka naala 😆",
+    "Teri behen ki chatri 🌂",
+    "Teri gaand mein danda 🤣",
+    "Teri maa ki chut me DJ bass 🔊",
+    "Tere baap ki moochon me patakha 🎇",
+    "Teri behen ki sari hawa me uda dunga 🎭",
+    "Teri maa ka bhosda Gol Gappa banake kha jaunga 😜",
+    "Teri gaand me torch dal ke light house bana dunga 🔦",
+    "Teri maa ki chut me namak daal dunga 🌊",
+    "MADARCHOD TERI MAA KI CHUT ME GHUTKA KHAAKE THOOK DUNGA 🤣🤣", 
+    "TERE BEHEN K CHUT ME CHAKU DAAL KAR CHUT KA KHOON KAR DUGA", 
+    "TERI MAA K BHOSDE ME AEROPLANE PARK KARKE UDAAN BHAR DUGA ✈️🛫", 
     "TERI MAA KI CHUT ME SUTLI BOMB FOD DUNGA 💣",
     "TERI MAAKI CHUT ME SCOOTER DAAL DUGA👅",  
     "TERE BHAI KI CHUT ME JHAADU LAGA DUNGA", 
@@ -42,115 +161,264 @@ galis = [
     "madarchod chutmarke teri tatti jesi shakl pe pad dunga bhen k lode chutiye",
     "maa k lode tere jese randi k baccho ko bachpan mai maar dena chiye",
     "TERA BAAP JOHNY SINS CIRCUS KAY BHOSDE JOKER KI CHIDAAS 14 LUND KI DHAAR TERI MUMMY KI CHUT MAI 200 INCH KA LUND",
+    "teri ma Randi tera baap hizda kaali gaand kay Khade baal jhaatu Randi kay chodu",
+    "SALA TARI BHAN KO ROAD PA LAJA KA KA NANGA KAR KA BAACHO SA CHUD VAU",
+    "teri maa k bhosde mai MDH CHANA MASALA daal k tere baap ko vo spicy bhosda khila dunga 🥵🤮",
+    "GAND MAI VIMAL KI GOLI BNA KAR DE DUNGA BHENCHO TERI GAAND MAI RAILWAY STATION KA FATAK DE DUNGA 😂😂🤬🖕",
+    "14 baap ki Najais olad randi kay beez chinnale",
+    "TARI MAA KI HARAAMJAALE BHOSDE PE MARUNGA LAATH TO TARI MIYAA CHUDEGI DINO RAAT",
+    "Teri ma ki gand me hathi ka lund dalke asa chodunga Na Bacha hojayega Johny sins ,ke lund se chudwaungu bhosdike",
+    "madar chod bhosdke esa lagta h apne hii taaate kaat ke chipka diya apni shakal dekh lodee jese shakal aur gand me h aakal",
+    "teri ma ki choot randi kay scammer apne baap kay rupye se Jhaat kay baal trim kra lena 😂😂🤢",
+    "bhsodike mujhe ye samajh nhi aata scam Karke kya tum jese loog apni mummy ka Randi naach dekhne jaate hoi 😂😂",
+    "Jitno ka tunne scam kia na sbb teri maa k bhosde mai momos daal ke tere baap ko vo spicy bhosda khila Dengey 🥵🤮",
+    "ek baar tu mill gya na tere scam kay paiso se teri gaand mai ungli de dunga or teri mummy se apna lund chusa kar chod dunga usko 🖕🥵🖕🥵🖕🤬😤🤢",
+    "betichod le 100 rs. lele mujhse or apni mummy ki choot dikha de 😤😤 tujhe bhaut sock hai logo kay rupye scam karne ka 🥵🖕",
+    "Randi kay scammer bhenchod 🤢 sale tum scammer loog har jagah apni maa kyo chudaane aa naate ho 🥵🤬",
+    "scammer randi ki olad Jhatal teri maa ka bhosda sale mia Khalifa ki najais olad 🖕🖕",
+    "Jhatal si sikal kay lund ki dhaar bhenchodd or kitne logo kay rupye scam karke apni gaand mai daalta hai 🤬😡",
     "teri bhn ko chodu 🥵 scam kay Paiso se apni mummy kay lie condom khareed lie jhaatu 😂",
     "🖕Scammer maderchod teri maa ka bhosda 🤮🤢 sale 2 koodi kay lund🤬🤬",
-    "TARI MAA KI CHUT ME NAARIYAL PHOR DUNGA 🔋 🔥", 
-    "TERI MAA KI CHUT MEI C++ STRING ENCRYPTION LAGA DUNGA",  
-    "TERI VAHEEN KO HORLICKS PEELAUNGA MADARCHOD😚",
-    "TERI MAA KO KOLKATA VAALE JITU BHAIYA KA LUND MUBARAK 🤩🤩",  
-    "TUJHE DEKH KE TERI RANDI BAHEN PE TARAS ATA HAI MUJHE BAHEN KE LODEEEE 👿💥🤩🔥",  
-    "TERI MAA KI CHUT ME NAARIYAL PHOR DUNGA 🔥"
+    "TARE DADA KE MUH PE MARUNGA LAATH TO TARI MIYAA CHUDEGI DONO RAAT",
+    "BAHEN KE LAWDE AWAAZ UTA AWAAZ NHI AA RAHA TARI MAA KA BHOSDA",
+    "TARI MAA KA BHOSDA",
+    "TARI MAA KI CHUT",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga aur sab galiyan sunenge",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga bina charger ke",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga bina permission ke",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga bina reboot ke",
+    "Tere baap ka lund ke mooch se violin bajake gali compose kar dunga fir usko chaat jaunga",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga aur usme ad laga dunga",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga bina charger ke",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga bina data loss ke",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga bina permission ke",
+    "Tere baap ka lund ko Flipkart pe sale pe daal dunga jise sab report karenge",
+    "Tere baap ka lund ko OnlyFans pe daal dunga",
+    "Tere baap ka lund ko OnlyFans pe daal dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund ko OnlyFans pe daal dunga bina permission ke",
+    "Tere baap ka lund ko OnlyFans pe daal dunga bina reboot ke",
+    "Tere baap ka lund ko OnlyFans pe daal dunga fir usko chaat jaunga",
+    "Tere baap ka lund ko OnlyFans pe daal dunga jise sab report karenge",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga aur sab galiyan sunenge",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga aur usme ad laga dunga",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga bina charger ke",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga bina reboot ke",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga fir usko chaat jaunga",
+    "Tere baap ka lund me AirPods daal ke gaane chala dunga jise sab report karenge",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga bina charger ke",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga bina data loss ke",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga bina reboot ke",
+    "Tere baap ka lund me Bluetooth speaker daal ke gali FM chala dunga jise sab report karenge",
+    "Tere baap ka lund me DJ system daal dunga",
+    "Tere baap ka lund me DJ system daal dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me DJ system daal dunga aur sab galiyan sunenge",
+    "Tere baap ka lund me DJ system daal dunga aur usme ad laga dunga",
+    "Tere baap ka lund me DJ system daal dunga bina charger ke",
+    "Tere baap ka lund me DJ system daal dunga bina data loss ke",
+    "Tere baap ka lund me DJ system daal dunga bina reboot ke",
+    "Tere baap ka lund me DJ system daal dunga fir usko chaat jaunga",
+    "Tere baap ka lund me Discord server chala dunga bina data loss ke",
+    "Tere baap ka lund me Discord server chala dunga bina permission ke",
+    "Tere baap ka lund me Discord server chala dunga bina reboot ke",
+    "Tere baap ka lund me Discord server chala dunga fir usko chaat jaunga",
+    "Tere baap ka lund me Discord server chala dunga jise sab report karenge",
+    "Tere baap ka lund me Notepad khol ke code likh dunga",
+    "Tere baap ka lund me Notepad khol ke code likh dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me Notepad khol ke code likh dunga bina data loss ke",
+    "Tere baap ka lund me Notepad khol ke code likh dunga bina permission ke",
+    "Tere baap ka lund me Notepad khol ke code likh dunga bina reboot ke",
+    "Tere baap ka lund me Notepad khol ke code likh dunga fir usko chaat jaunga",
+    "Tere baap ka lund me Notepad khol ke code likh dunga jise sab report karenge",
+    "Tere baap ka lund me RAM stick daal dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me RAM stick daal dunga aur usme ad laga dunga",
+    "Tere baap ka lund me RAM stick daal dunga bina charger ke",
+    "Tere baap ka lund me RAM stick daal dunga bina data loss ke",
+    "Tere baap ka lund me RAM stick daal dunga bina permission ke",
+    "Tere baap ka lund me RAM stick daal dunga bina reboot ke",
+    "Tere baap ka lund me RAM stick daal dunga fir usko chaat jaunga",
+    "Tere baap ka lund me RAM stick daal dunga jise sab report karenge",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga aur sab galiyan sunenge",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga bina charger ke",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga bina data loss ke",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga bina permission ke",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga fir usko chaat jaunga",
+    "Tere baap ka lund me SSD daal ke fast access kar lunga jise sab report karenge",
+    "Tere baap ka lund me firewall daal ke secure kar dunga",
+    "Tere baap ka lund me firewall daal ke secure kar dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me firewall daal ke secure kar dunga aur sab galiyan sunenge",
+    "Tere baap ka lund me firewall daal ke secure kar dunga aur usme ad laga dunga",
+    "Tere baap ka lund me firewall daal ke secure kar dunga bina charger ke",
+    "Tere baap ka lund me firewall daal ke secure kar dunga bina data loss ke",
+    "Tere baap ka lund me firewall daal ke secure kar dunga bina reboot ke",
+    "Tere baap ka lund me firewall daal ke secure kar dunga fir usko chaat jaunga",
+    "Tere baap ka lund me firewall daal ke secure kar dunga jise sab report karenge",
+    "Tere baap ka lund me solar panel laga dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me solar panel laga dunga bina charger ke",
+    "Tere baap ka lund me solar panel laga dunga bina data loss ke",
+    "Tere baap ka lund me solar panel laga dunga bina reboot ke",
+    "Tere baap ka lund me spaghetti bana dunga",
+    "Tere baap ka lund me spaghetti bana dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund me spaghetti bana dunga aur usme ad laga dunga",
+    "Tere baap ka lund me spaghetti bana dunga bina charger ke",
+    "Tere baap ka lund me spaghetti bana dunga bina data loss ke",
+    "Tere baap ka lund me spaghetti bana dunga bina permission ke",
+    "Tere baap ka lund me spaghetti bana dunga bina reboot ke",
+    "Tere baap ka lund me spaghetti bana dunga fir usko chaat jaunga",
+    "Tere baap ka lund me spaghetti bana dunga jise sab report ke aulad",
+    "Tere baap ka lund pe GPS laga dunga bina permission ke",
+    "Tere baap ka lund pe GPS laga dunga bina reboot ke",
+    "Tere baap ka lund pe GPS laga dunga fir usko chaat jaunga",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga aur livestream chalu kar dunga",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga aur sab galiyan sunenge",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga aur usme ad laga dunga",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga bina charger ke",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga bina data loss ke",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga bina reboot ke",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga fir usko chaat jaunga",
+    "Tere baap ka lund pe QR code chipka ke scan karwaunga jise sab report karenge",
+    "Tere baap ka lund pe barcode chipka dunga",
+    "Tere baap ka lund pe barcode chipka dunga aur livestream chalu kar dunga",
+    "Tere baap ka lund pe barcode chipka dunga aur sab galiyan sunenge",
+    "Tere baap ka lund pe barcode chipka dunga aur usme ad laga dunga",
+    "Tere baap ka lund pe barcode chipka dunga bina data loss ke",
+    "Tere baap ka lund pe barcode chipka dunga bina permission ke",
+    "Tere baap ka lund pe barcode chipka dunga fir usko chaat jaunga",
+    "Tere baap ka lund pe barcode chipka dunga jise sab report karenge",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga aur sab galiyan sunenge",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga aur usme ad laga dunga",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga bina charger ke",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga bina data loss ke",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga bina reboot ke",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga fir usko chaat jaunga",
+    "Tere baap ke mooch se violin bajake gali compose kar dunga jise sab report karenge",
+    "Tere baap ko Flipkart pe sale pe daal dunga aur livestream chalu kar dunga",
+    "Tere baap ko Flipkart pe sale pe daal dunga aur usme ad laga dunga",
+    "Tere baap ko Flipkart pe sale pe daal dunga bina permission ke",
+    "Tere baap ko Flipkart pe sale pe daal dunga bina reboot ke",
+    "Tere baap ko Flipkart pe sale pe daal dunga fir usko chaat jaunga",
+    "Tere baap ko Flipkart pe sale pe daal dunga jise sab report karenge",
+    "Tere baap ko OnlyFans pe daal dunga",
+    "Tere baap ko OnlyFans pe daal dunga aur livestream chalu kar dunga",
+    "Tere baap ko OnlyFans pe daal dunga aur sab galiyan sunenge",
+    "Tere baap ko OnlyFans pe daal dunga aur usme ad laga dunga",
+    "Tere baap ko OnlyFans pe daal dunga bina charger ke",
+    "Tere baap ko OnlyFans pe daal dunga bina permission ke",
+    "Tere baap ko OnlyFans pe daal dunga bina reboot ke",
+    "Tere baap ko OnlyFans pe daal dunga fir usko chaat jaunga",
+    "Tere baap me AirPods daal ke gaane chala dunga",
+    "Tere baap me AirPods daal ke gaane chala dunga aur livestream chalu kar dunga",
+    "Tere baap me AirPods daal ke gaane chala dunga aur sab galiyan sunenge",
+    "Tere baap me AirPods daal ke gaane chala dunga aur usme ad laga dunga",
+    "Tere baap me AirPods daal ke gaane chala dunga bina permission ke",
+    "Tere baap me AirPods daal ke gaane chala dunga jise sab report karenge",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga aur livestream chalu kar dunga",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga aur sab galiyan sunenge",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga aur usme ad laga dunga",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga bina charger ke",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga bina data loss ke",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga bina reboot ke",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga fir usko chaat jaunga",
+    "Tere baap me Bluetooth speaker daal ke gali FM chala dunga jise sab report karenge",
+    "Tere baap me DJ system daal dunga",
+    "Tere baap me DJ system daal dunga aur sab galiyan sunenge",
+    "Tere baap me DJ system daal dunga aur usme ad laga dunga",
+    "Tere baap me DJ system daal dunga bina data loss ke",
+    "Tere baap me DJ system daal dunga bina reboot ke",
+    "Tere baap me DJ system daal dunga fir usko chaat jaunga",
+    "Tere baap me DJ system daal dunga jise sab report karenge",
+    "Tere baap me Discord server chala dunga",
+    "Tere baap me Discord server chala dunga aur livestream chalu kar dunga",
+    "Tere baap me Discord server chala dunga aur sab galiyan sunenge",
+    "Tere baap me Discord server chala dunga aur usme ad laga dunga",
+    "Tere baap me Discord server chala dunga bina data loss ke",
+    "Tere baap me Discord server chala dunga bina permission ke",
+    "Tere baap me Discord server chala dunga jise sab report karenge",
+    "Tere baap me Notepad khol ke code likh dunga",
+    "Tere baap me Notepad khol ke code likh dunga aur sab galiyan sunenge",
+    "Tere baap me Notepad khol ke code likh dunga aur usme ad laga dunga",
+    "Tere baap me Notepad khol ke code likh dunga jise sab report karenge",
+    "Tere baap me RAM stick daal dunga",
+    "Tere baap me RAM stick daal dunga aur livestream chalu kar dunga",
+    "Tere baap me RAM stick daal dunga aur sab galiyan sunenge",
+    "Tere baap me RAM stick daal dunga aur usme ad laga dunga",
+    "Tere baap me RAM stick daal dunga bina charger ke",
+    "Tere baap me RAM stick daal dunga bina data loss ke",
+    "Tere baap me RAM stick daal dunga bina reboot ke",
+    "Tere baap me RAM stick daal dunga fir usko chaat jaunga",
+    "Tere baap me RAM stick daal dunga jise sab report karenge",
+    "Tere baap me SSD daal ke fast access kar lunga",
+    "Tere baap me SSD daal ke fast access kar lunga aur livestream chalu kar dunga",
+    "Tere baap me SSD daal ke fast access kar lunga aur sab galiyan sunenge",
+    "Tere baap me SSD daal ke fast access kar lunga aur usme ad laga dunga",
+    "Tere baap me SSD daal ke fast access kar lunga bina charger ke",
+    "Tere baap me SSD daal ke fast access kar lunga bina data loss ke",
+    "Tere baap me SSD daal ke fast access kar lunga bina permission ke",
+    "Tere baap me SSD daal ke fast access kar lunga bina reboot ke",
+    "Tere baap me SSD daal ke fast access kar lunga fir usko chaat jaunga",
+    "Tere baap me SSD daal ke fast access kar lunga jise sab report karenge",
+    "Tere baap me firewall daal ke secure kar dunga",
+    "Tere baap me firewall daal ke secure kar dunga aur livestream chalu kar dunga",
+    "Tere baap me firewall daal ke secure kar dunga aur sab galiyan sunenge",
+    "Tere baap me firewall daal ke secure kar dunga aur usme ad laga dunga",
+    "Tere baap me firewall daal ke secure kar dunga bina charger ke",
+    "Tere baap me firewall daal ke secure kar dunga bina data loss ke",
+    "Tere baap me firewall daal ke secure kar dunga bina reboot ke",
+    "Tere baap me firewall daal ke secure kar dunga jise sab report karenge",
+    "Tere baap me solar panel laga dunga aur usme ad laga dunga",
+    "Tere baap me solar panel laga dunga bina charger ke",
+    "Tere baap me solar panel laga dunga bina data loss ke",
+    "Tere baap me solar panel laga dunga bina permission ke",
+    "Tere baap me solar panel laga dunga jise sab report karenge",
+    "Tere baap me spaghetti bana dunga",
+    "Tere baap me spaghetti bana dunga aur livestream chalu kar dunga",
+    "Tere baap me spaghetti bana dunga aur sab galiyan sunenge",
+    "Tere baap me spaghetti bana dunga aur usme ad laga dunga",
+    "Tere baap me spaghetti bana dunga bina charger ke",
+    "Tere baap me spaghetti bana dunga bina data loss ke",
+    "Tere baap me spaghetti",
 ]
 
-# Load approved users from file
-def load_approved_users():
-    if os.path.exists(APPROVED_USERS_FILE):
-        with open(APPROVED_USERS_FILE, "r") as f:
-            return [int(line.strip()) for line in f if line.strip().isdigit()]
-    return []
-
-# Save approved users to file
-def save_approved_users():
-    with open(APPROVED_USERS_FILE, "w") as f:
-        for user_id in approved_users:
-            f.write(f"{user_id}\n")
-
-approved_users = load_approved_users()
-admins = [8179218740]  # Replace with your admin user ID
-
-# Inline button for owner
-my = types.InlineKeyboardButton(text="Owner", url="t.me/team_nh")
-xx = types.InlineKeyboardMarkup()
-xx.add(my)
-
-@bot.message_handler(commands=["start"])
-def welcome(message):
-    bot.reply_to(message, "Welcome To Gali Spam Bot 😈", reply_markup=xx)
-
-@bot.message_handler(commands=["approve"])
-def approve_user(message):
-    if message.from_user.id not in admins:
-        bot.reply_to(message, "Only Admins can approve users!")
-        return
-    
-    msg = message.text.split()
-    if len(msg) != 2 or not msg[1].isdigit():
-        bot.reply_to(message, "Usage: /approve <user_id>")
-        return
-
-    user_id = int(msg[1])
-    if user_id not in approved_users:
-        approved_users.append(user_id)
-        save_approved_users()
-        bot.reply_to(message, f"User {user_id} approved!")
-    else:
-        bot.reply_to(message, f"User {user_id} is already approved.")
-
 @bot.message_handler(commands=["fuck"])
-def start_spam(message):
-    if message.from_user.id not in approved_users:
-        bot.reply_to(message, "You are not approved to use this bot!")
+def send_all_galis(message):
+    global stop_gali
+    stop_gali = False
+    if message.from_user.id not in [user['id'] for user in approved_users]:
+        bot.reply_to(message, "You are not approved to use this command.")
         return
-
-    msg = message.text.split()
-    if len(msg) != 2:
+    msg_parts = message.text.split()
+    if len(msg_parts) != 2:
         bot.reply_to(message, "Usage: /fuck <username>")
         return
+    username = msg_parts[1]
+    bot.reply_to(message, f"Spamming {username} with infinite galis...")
 
-    target_username = msg[1]
-    target_user = bot.get_chat_member(message.chat.id, target_username)
+    def spam_forever():
+        while not stop_gali:
+            random.shuffle(galis)
+            for gali in galis:
+                if stop_gali:
+                    return
+                try:
+                    bot.send_message(message.chat.id, f"{username} {gali}")
+                    time.sleep(0.3)  # fast but avoids flood ban
+                except:
+                    continue
 
-    if target_user is None:
-        bot.reply_to(message, f"User {target_username} not found!")
-        return
+    threads = []
+    for _ in range(5):  # Reduced to 5 threads for smooth running
+        t = threading.Thread(target=spam_forever)
+        t.daemon = True
+        threads.append(t)
+        t.start()
 
-    if target_username in spamming_users:
-        bot.reply_to(message, f"Already spamming {target_username}!")
-        return
-
-    def spam():
-        try:
-            while target_user:
-                msg = random.choice(galis)
-                bot.send_message(target_username, msg)
-                time.sleep(2)  # Delay between each message
-        except Exception as e:
-            bot.send_message(message.chat.id, f"Error: {e}")
-            spamming_users.pop(target_username, None)
-
-    spamming_thread = threading.Thread(target=spam)
-    spamming_thread.start()
-    spamming_users[target_username] = spamming_thread
-    bot.reply_to(message, f"Started spamming {target_username}")
-
-@bot.message_handler(commands=["stop"])
-def stop_spamming(message):
-    if message.from_user.id not in approved_users:
-        bot.reply_to(message, "You are not approved to stop spamming!")
-        return
-
-    msg = message.text.split()
-    if len(msg) != 2:
-        bot.reply_to(message, "Usage: /stop <username>")
-        return
-
-    target_username = msg[1]
-    if target_username not in spamming_users:
-        bot.reply_to(message, f"Not spamming {target_username} currently!")
-        return
-
-    spamming_users[target_username].stop()
-    del spamming_users[target_username]
-    bot.reply_to(message, f"Stopped spamming {target_username}")
-
-bot.polling()
+print("Bot is running...")
+bot.infinity_polling()
